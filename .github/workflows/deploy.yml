@@ -1,0 +1,125 @@
+name: 🚀 Deploy
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request: {}
+
+jobs:
+  run-sitespeed:
+    permissions: read-all
+    runs-on: ubuntu-latest
+    name: 🏎️ Sitespeed.io 🏁
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v3
+      - name: 🐳 Running Sitespeed.io Docker container
+        run: docker run -v "$(pwd):/sitespeed.io" sitespeedio/sitespeed.io:24.7.0 https://www.sitespeed.io --budget.configPath .github/performance.budget.json -n 1
+  lint:
+    permissions: read-all
+    name: ⬣ ESLint
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v3
+
+      - name: ⎔ Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: 📥 Download deps
+        uses: bahmutov/npm-install@v1
+
+      - name: 🔬 Lint
+        run: npm run lint
+
+  typecheck:
+    permissions: read-all
+    name: ʦ TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v3
+
+      - name: ⎔ Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: 📥 Download deps
+        uses: bahmutov/npm-install@v1
+
+      - name: 🔎 Type check
+        run: npm run typecheck --if-present
+
+  vitest:
+    permissions: read-all
+    name: ⚡ Vitest
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v3
+
+      - name: ⎔ Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: 📥 Download deps
+        uses: bahmutov/npm-install@v1
+
+      - name: ⚡ Run vitest
+        run: npm run test -- --coverage
+
+  cypress:
+    permissions: read-all
+    name: ⚫️ Cypress
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v3
+
+      - name: 🏄 Copy test env vars
+        run: cp .env.example .env
+
+      - name: ⎔ Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: 📥 Download deps
+        uses: bahmutov/npm-install@v1
+
+      - name: 🛠 Setup Database
+        run: npx prisma migrate reset --force
+
+      - name: ⚙️ Build
+        run: npm run build
+
+      - name: 🌳 Cypress run
+        uses: cypress-io/github-action@v3
+        with:
+          start: npm run start:mocks
+          wait-on: "http://localhost:8811"
+        env:
+          PORT: "8811"
+          PLATFORM_CALLBACK_URL: "http://localhost:8811/authorize/twitter/callback"
+          SESSION_SECRET: ${{secrets.SESSION_SECRET}}
+          PLATFORM_CLIENT_ID: ${{secrets.PLATFORM_CLIENT_ID}}
+          PLATFORM_CLIENT_SECRET: ${{secrets.PLATFORM_CLIENT_SECRET}}

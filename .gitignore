@@ -1,0 +1,13 @@
+node_modules
+
+.cache
+.vercel
+
+public/build
+public/build.tvf
+api/_build
+api/_build.tvf
+build
+build.tvf
+
+.env
